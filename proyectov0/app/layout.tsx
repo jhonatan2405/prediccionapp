@@ -8,13 +8,9 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "DML-Predict AI - Sistema de Diagnóstico Inteligente",
-  description: "Sistema de apoyo al diagnóstico diferencial de enfermedades tropicales usando Machine Learning",
+  title: "Sistema de Predicciones - Machine Learning",
+  description: "Aplicación web para realizar predicciones individuales y por lotes usando modelos de Machine Learning",
   generator: "v0.app",
-  icons: {
-    icon: "/favicon2.png",
-    apple: "/favicon2.png",
-  },
 }
 
 export default function RootLayout({
@@ -31,4 +27,3 @@ export default function RootLayout({
     </html>
   )
 }
-

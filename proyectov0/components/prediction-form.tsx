@@ -84,12 +84,9 @@ export function PredictionForm() {
     resultDiv.style.cssText = `
       width: 800px;
       padding: 40px;
-      background: #667eea;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       font-family: system-ui, -apple-system, sans-serif;
-      color: #ffffff;
-      position: fixed;
-      top: -9999px;
-      left: -9999px;
+      color: white;
     `
 
     const colorMap: Record<string, string> = {
@@ -99,7 +96,7 @@ export function PredictionForm() {
     }
 
     resultDiv.innerHTML = `
-      <div style="background: #ffffff; border-radius: 20px; padding: 30px; color: #1f2937;">
+      <div style="background: white; border-radius: 20px; padding: 30px; color: #1f2937;">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="font-size: 32px; font-weight: bold; margin: 0 0 10px 0; color: #111827;">
             Sistema DEMALE-HSJM
@@ -140,19 +137,8 @@ export function PredictionForm() {
 
     try {
       const canvas = await html2canvas(resultDiv, {
-        backgroundColor: "#667eea",
+        backgroundColor: null,
         scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        foreignObjectRendering: false,
-        onclone: (clonedDoc) => {
-          // Ensure all elements use hex colors only
-          const clonedDiv = clonedDoc.querySelector("div") as HTMLElement
-          if (clonedDiv) {
-            clonedDiv.style.background = "#667eea"
-          }
-        },
       })
 
       const link = document.createElement("a")
@@ -172,7 +158,7 @@ export function PredictionForm() {
       Swal.fire({
         icon: "error",
         title: "Error",
-        text: "No se pudo generar la imagen. Por favor intenta nuevamente.",
+        text: "No se pudo generar la imagen",
         confirmButtonColor: "#000",
       })
     } finally {
@@ -181,6 +167,7 @@ export function PredictionForm() {
   }
 
   const handlePredict = async () => {
+    // Validar que todos los campos principales estén llenos
     const missingFields = MAIN_VARIABLES.filter((field) => !formData[field.name])
 
     if (missingFields.length > 0) {
@@ -275,6 +262,8 @@ export function PredictionForm() {
 
   return (
     <div className="space-y-6">
+  
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4">
         {MAIN_VARIABLES.map((variable) => (
           <div key={variable.name} className="space-y-2">
@@ -398,4 +387,3 @@ export function PredictionForm() {
     </div>
   )
 }
-
