@@ -73,7 +73,7 @@ export default function PredictionApp() {
 
               <TabsContent value="individual" className="animate-scale-in">
                 <Card className="border-border/50 shadow-2xl hover:shadow-3xl transition-all hover:border-primary/30 backdrop-blur-sm bg-card/80">
-                  <CardHeader className="p-4 md:p-6">
+                  <CardHeader className="pt-4 px-4 md:pt-6 md:px-6">
                     <CardTitle className="flex items-center gap-2 md:gap-3 text-lg md:text-2xl">
                       <div className="flex items-center justify-center w-8 h-8 md:w-10 md:h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/10">
                         <Activity className="w-4 h-4 md:w-6 md:h-6 text-primary flex-shrink-0" />
@@ -173,5 +173,6 @@ export default function PredictionApp() {
     </>
   )
 }
+
 
 
