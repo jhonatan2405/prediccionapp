@@ -20,6 +20,32 @@
 
 ---
 
+
+---
+
+## 🤖 Modelos de Clasificación
+
+El sistema ofrece dos algoritmos de machine learning para realizar predicciones:
+
+### 1. Regresión Logística
+- **Tipo**: Modelo lineal clásico
+- **Características**: Rápido, eficiente y interpretable
+- **Uso recomendado**: Casos donde se busca rapidez y simplicidad
+- **Ventajas**: Menor complejidad computacional, resultados consistentes
+
+### 2. Red Neuronal Artificial
+- **Tipo**: Modelo de deep learning
+- **Características**: Captura patrones complejos y no lineales
+- **Uso recomendado**: Casos con múltiples variables y relaciones complejas
+- **Ventajas**: Mayor capacidad de aprendizaje, mejor manejo de datos complejos
+
+Ambos modelos utilizan las mismas variables clínicas de entrada y proporcionan:
+- Diagnóstico predicho (Dengue, Malaria o Leptospirosis)
+- Nivel de confianza (porcentaje)
+- Resultados determinísticos (mismos datos = mismo resultado)
+
+---
+
 ## 🛠️ Tecnologías utilizadas
 
 ### Frontend
