@@ -5,82 +5,168 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Swal from "sweetalert2"
-import { Loader2, ChevronDown, Brain, Network } from "lucide-react"
+import { Loader2, Brain, Network } from "lucide-react"
 
-const MAIN_VARIABLES = [
-  { name: "Edad", label: "Edad (años)", type: "number", placeholder: "25" },
-  { name: "Sexo", label: "Sexo", type: "select", options: ["Masculino", "Femenino"] },
-  { name: "Temperatura", label: "Temperatura (°C)", type: "number", placeholder: "38.5", step: "0.1" },
-  { name: "Fiebre", label: "Fiebre", type: "select", options: ["Sí", "No"] },
-  { name: "Dolor_Cabeza", label: "Dolor de Cabeza", type: "select", options: ["Sí", "No"] },
-  { name: "Nauseas", label: "Náuseas", type: "select", options: ["Sí", "No"] },
-  { name: "Plaquetas", label: "Plaquetas (células/μL)", type: "number", placeholder: "200000" },
-  { name: "Hemoglobina", label: "Hemoglobina (g/dL)", type: "number", placeholder: "14.5", step: "0.1" },
+// Interface para definir las variables con validación
+interface VariableDef {
+  name: string // Nombre en español (clave en formData)
+  label: string
+  type: "number" | "select"
+  placeholder?: string
+  step?: string
+  options?: string[]
+  datasetName: string // Nombre en inglés para el dataset
+  min?: number
+  max?: number
+  required?: boolean
+  section?: string
+}
+
+// Todas las variables del dataset - todas son obligatorias para predicción individual
+const ALL_VARIABLES: VariableDef[] = [
+  // Datos Demográficos
+  { name: "Edad", label: "Edad (años)", type: "number", placeholder: "25", datasetName: "age", min: 0, max: 110, required: true, section: "demographics" },
+  { name: "Sexo", label: "Sexo", type: "select", options: ["Masculino", "Femenino"], datasetName: "sex", required: true, section: "demographics" },
+  
+  // Procedencia
+  { name: "Procedencia", label: "Procedencia", type: "select", options: ["Urbano", "Rural"], datasetName: "origin", required: true, section: "demographics" },
+  
+  // Ocupación
+  { name: "Ocupacion", label: "Ocupación", type: "select", options: ["Ama de casa", "Estudiante", "Profesional", "Comerciante", "Agricultura/Ganadería", "Oficios varios", "Desempleado"], datasetName: "occupation", required: true, section: "demographics" },
+  
+  // Estancia
+  { name: "Dias_Hospitalizacion", label: "Días de Hospitalización", type: "number", placeholder: "5", datasetName: "hospitalization_days", min: 0, max: 120, required: true, section: "demographics" },
+  
+  // Signos Vitales
+  { name: "Temperatura", label: "Temperatura Corporal (°C)", type: "number", placeholder: "38.5", step: "0.1", datasetName: "body_temperature", min: 30.0, max: 45.0, required: true, section: "vitals" },
+  
+  // Síntomas
+  { name: "Fiebre", label: "Fiebre", type: "select", options: ["Sí", "No"], datasetName: "fever", required: true, section: "symptoms" },
+  { name: "Dolor_Cabeza", label: "Dolor de Cabeza", type: "select", options: ["Sí", "No"], datasetName: "headache", required: true, section: "symptoms" },
+  { name: "Mareo", label: "Mareo", type: "select", options: ["Sí", "No"], datasetName: "dizziness", required: true, section: "symptoms" },
+  { name: "Perdida_Apetito", label: "Pérdida de Apetito", type: "select", options: ["Sí", "No"], datasetName: "loss_of_appetite", required: true, section: "symptoms" },
+  { name: "Debilidad", label: "Debilidad", type: "select", options: ["Sí", "No"], datasetName: "weakness", required: true, section: "symptoms" },
+  { name: "Dolor_Ocular", label: "Dolor Ocular", type: "select", options: ["Sí", "No"], datasetName: "eye_pain", required: true, section: "symptoms" },
+  { name: "Escalofrios", label: "Escalofríos", type: "select", options: ["Sí", "No"], datasetName: "chills", required: true, section: "symptoms" },
+  { name: "Vomito", label: "Vómito", type: "select", options: ["Sí", "No"], datasetName: "vomiting", required: true, section: "symptoms" },
+  { name: "Dolor_Abdominal", label: "Dolor Abdominal", type: "select", options: ["Sí", "No"], datasetName: "abdominal_pain", required: true, section: "symptoms" },
+  { name: "Diarrea", label: "Diarrea", type: "select", options: ["Sí", "No"], datasetName: "diarrhea", required: true, section: "symptoms" },
+  { name: "Dolor_Muscular", label: "Dolor Muscular", type: "select", options: ["Sí", "No"], datasetName: "myalgias", required: true, section: "symptoms" },
+  { name: "Dolor_Articular", label: "Dolor Articular", type: "select", options: ["Sí", "No"], datasetName: "arthralgias", required: true, section: "symptoms" },
+  { name: "Erupcion_Cutanea", label: "Erupción Cutánea", type: "select", options: ["Sí", "No"], datasetName: "rash", required: true, section: "symptoms" },
+  { name: "Ictericia", label: "Ictericia", type: "select", options: ["Sí", "No"], datasetName: "jaundice", required: true, section: "symptoms" },
+  { name: "Sangrado", label: "Sangrado", type: "select", options: ["Sí", "No"], datasetName: "hemorrhages", required: true, section: "symptoms" },
+  { name: "Hemoptisis", label: "Hemoptisis (Tos con Sangre)", type: "select", options: ["Sí", "No"], datasetName: "hemoptysis", required: true, section: "symptoms" },
+  { name: "Edema", label: "Edema (Hinchazón)", type: "select", options: ["Sí", "No"], datasetName: "edema", required: true, section: "symptoms" },
+  { name: "Moretones", label: "Moretones", type: "select", options: ["Sí", "No"], datasetName: "bruises", required: true, section: "symptoms" },
+  { name: "Petequias", label: "Petequias", type: "select", options: ["Sí", "No"], datasetName: "petechiae", required: true, section: "symptoms" },
+  { name: "Prurito", label: "Prurito/Picazón", type: "select", options: ["Sí", "No"], datasetName: "itching", required: true, section: "symptoms" },
+  { name: "Disnea", label: "Disnea (Dificultad Respiratoria)", type: "select", options: ["Sí", "No"], datasetName: "respiratory_difficulty", required: true, section: "symptoms" },
+  
+  // Laboratorio - Hemograma
+  { name: "Plaquetas", label: "Plaquetas (x10³/μL)", type: "number", placeholder: "200", datasetName: "platelets", min: 0, max: 1500, required: true, section: "hemogram" },
+  { name: "Hemoglobina", label: "Hemoglobina (g/dL)", type: "number", placeholder: "14.5", step: "0.1", datasetName: "hemoglobin", min: 0, max: 25, required: true, section: "hemogram" },
+  { name: "Leucocitos", label: "Leucocitos (x10³/μL)", type: "number", placeholder: "7", datasetName: "white_blood_cells", min: 0, max: 200, required: true, section: "hemogram" },
+  { name: "Hematocrito", label: "Hematocrito (%)", type: "number", placeholder: "42", step: "0.1", datasetName: "hematocrit", min: 0, max: 70, required: true, section: "hemogram" },
+  { name: "Globulos_Rojos", label: "Glóbulos Rojos (x10⁶/μL)", type: "number", placeholder: "4.5", step: "0.1", datasetName: "red_blood_cells", min: 0, max: 10, required: true, section: "hemogram" },
+  { name: "Neutrofilos", label: "Neutrófilos (%)", type: "number", placeholder: "60", step: "0.1", datasetName: "neutrophils", min: 0, max: 100, required: true, section: "hemogram" },
+  { name: "Linfocitos", label: "Linfocitos (%)", type: "number", placeholder: "30", step: "0.1", datasetName: "lymphocytes", min: 0, max: 100, required: true, section: "hemogram" },
+  { name: "Eosinofilos", label: "Eosinófilos (%)", type: "number", placeholder: "2", step: "0.1", datasetName: "eosinophils", min: 0, max: 100, required: true, section: "hemogram" },
+  { name: "Basofilos", label: "Basófilos (%)", type: "number", placeholder: "1", step: "0.1", datasetName: "basophils", min: 0, max: 100, required: true, section: "hemogram" },
+  { name: "Monocitos", label: "Monocitos (%)", type: "number", placeholder: "7", step: "0.1", datasetName: "monocytes", min: 0, max: 100, required: true, section: "hemogram" },
+  
+  // Laboratorio - Bioquímica
+  { name: "Creatinina", label: "Creatinina (mg/dL)", type: "number", placeholder: "1.0", step: "0.1", datasetName: "creatinine", min: 0, max: 20, required: true, section: "biochemistry" },
+  { name: "BUN", label: "Urea (mg/dL)", type: "number", placeholder: "15", step: "0.1", datasetName: "urea", min: 0, max: 300, required: true, section: "biochemistry" },
+  { name: "Bilirrubina_Total", label: "Bilirrubina Total (mg/dL)", type: "number", placeholder: "1.0", step: "0.1", datasetName: "total_bilirubin", min: 0, max: 50, required: true, section: "biochemistry" },
+  { name: "Bilirrubina_Directa", label: "Bilirrubina Directa (mg/dL)", type: "number", placeholder: "0.3", step: "0.1", datasetName: "direct_bilirubin", min: 0, max: 50, required: true, section: "biochemistry" },
+  { name: "Bilirrubina_Indirecta", label: "Bilirrubina Indirecta (mg/dL)", type: "number", placeholder: "0.7", step: "0.1", datasetName: "indirect_bilirubin", min: 0, max: 50, required: true, section: "biochemistry" },
+  { name: "TGO_AST", label: "AST/TGO (U/L)", type: "number", placeholder: "30", datasetName: "AST", min: 0, max: 2000, required: true, section: "biochemistry" },
+  { name: "TGP_ALT", label: "ALT/TGP (U/L)", type: "number", placeholder: "35", datasetName: "ALT", min: 0, max: 2000, required: true, section: "biochemistry" },
+  { name: "Fosfatasa_Alcalina", label: "Fosfatasa Alcalina (U/L)", type: "number", placeholder: "100", datasetName: "alkaline_phosphatase", min: 0, max: 3000, required: true, section: "biochemistry" },
+  { name: "Albumina", label: "Albúmina (g/dL)", type: "number", placeholder: "4.0", step: "0.1", datasetName: "albumin", min: 0, max: 6, required: true, section: "biochemistry" },
+  { name: "Proteinas_Totales", label: "Proteínas Totales (g/dL)", type: "number", placeholder: "7.0", step: "0.1", datasetName: "total_proteins", min: 0, max: 12, required: true, section: "biochemistry" },
 ]
 
-const ADDITIONAL_VARIABLES = [
-  // Signos Vitales Adicionales
-  { name: "Presion_Sistolica", label: "Presión Sistólica (mmHg)", type: "number", placeholder: "120" },
-  { name: "Presion_Diastolica", label: "Presión Diastólica (mmHg)", type: "number", placeholder: "80" },
-  { name: "Frecuencia_Cardiaca", label: "Frecuencia Cardíaca (lpm)", type: "number", placeholder: "80" },
-  { name: "Frecuencia_Respiratoria", label: "Frecuencia Respiratoria (rpm)", type: "number", placeholder: "18" },
-
-  // Síntomas Adicionales
-  { name: "Vomito", label: "Vómito", type: "select", options: ["Sí", "No"] },
-  { name: "Dolor_Abdominal", label: "Dolor Abdominal", type: "select", options: ["Sí", "No"] },
-  { name: "Diarrea", label: "Diarrea", type: "select", options: ["Sí", "No"] },
-  { name: "Dolor_Muscular", label: "Dolor Muscular", type: "select", options: ["Sí", "No"] },
-  { name: "Dolor_Articular", label: "Dolor Articular", type: "select", options: ["Sí", "No"] },
-  { name: "Erupcion_Cutanea", label: "Erupción Cutánea", type: "select", options: ["Sí", "No"] },
-  { name: "Ictericia", label: "Ictericia", type: "select", options: ["Sí", "No"] },
-  { name: "Sangrado", label: "Sangrado", type: "select", options: ["Sí", "No"] },
-  { name: "Tos", label: "Tos", type: "select", options: ["Sí", "No"] },
-  { name: "Disnea", label: "Disnea", type: "select", options: ["Sí", "No"] },
-
-  // Laboratorio - Hematología
-  { name: "Leucocitos", label: "Leucocitos (células/μL)", type: "number", placeholder: "7000" },
-  { name: "Hematocrito", label: "Hematocrito (%)", type: "number", placeholder: "42", step: "0.1" },
-  { name: "Neutrofilos", label: "Neutrófilos (%)", type: "number", placeholder: "60", step: "0.1" },
-  { name: "Linfocitos", label: "Linfocitos (%)", type: "number", placeholder: "30", step: "0.1" },
-
-  // Laboratorio - Química Sanguínea
-  { name: "Creatinina", label: "Creatinina (mg/dL)", type: "number", placeholder: "1.0", step: "0.1" },
-  { name: "BUN", label: "BUN (mg/dL)", type: "number", placeholder: "15", step: "0.1" },
-  { name: "Bilirrubina_Total", label: "Bilirrubina Total (mg/dL)", type: "number", placeholder: "1.0", step: "0.1" },
-  {
-    name: "Bilirrubina_Directa",
-    label: "Bilirrubina Directa (mg/dL)",
-    type: "number",
-    placeholder: "0.3",
-    step: "0.1",
-  },
-  { name: "TGO_AST", label: "TGO/AST (U/L)", type: "number", placeholder: "30" },
-  { name: "TGP_ALT", label: "TGP/ALT (U/L)", type: "number", placeholder: "35" },
-  { name: "Fosfatasa_Alcalina", label: "Fosfatasa Alcalina (U/L)", type: "number", placeholder: "100" },
-  { name: "Albumina", label: "Albúmina (g/dL)", type: "number", placeholder: "4.0", step: "0.1" },
-  { name: "Proteinas_Totales", label: "Proteínas Totales (g/dL)", type: "number", placeholder: "7.0", step: "0.1" },
-
-  // Antecedentes
-  { name: "Dias_Sintomas", label: "Días con Síntomas", type: "number", placeholder: "3" },
-  { name: "Viaje_Reciente", label: "Viaje Reciente", type: "select", options: ["Sí", "No"] },
-  { name: "Contacto_Agua", label: "Contacto con Agua Contaminada", type: "select", options: ["Sí", "No"] },
-  { name: "Picadura_Mosquito", label: "Picadura de Mosquito", type: "select", options: ["Sí", "No"] },
-]
+// Organizar variables por secciones
+const VARIABLES_BY_SECTION = {
+  demographics: ALL_VARIABLES.filter(v => v.section === "demographics"),
+  vitals: ALL_VARIABLES.filter(v => v.section === "vitals"),
+  symptoms: ALL_VARIABLES.filter(v => v.section === "symptoms"),
+  hemogram: ALL_VARIABLES.filter(v => v.section === "hemogram"),
+  biochemistry: ALL_VARIABLES.filter(v => v.section === "biochemistry"),
+}
 
 export function PredictionForm() {
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [isLoading, setIsLoading] = useState(false)
-  const [showAdditional, setShowAdditional] = useState(false)
   const [selectedModel, setSelectedModel] = useState<"logistic" | "neural">("logistic")
 
   const handleInputChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const getDataHash = (data: Record<string, string>): number => {
+  // Validar rango numérico
+  const validateNumericRange = (value: string, min?: number, max?: number): boolean => {
+    if (!value) return false
+    const num = Number.parseFloat(value)
+    if (Number.isNaN(num)) return false
+    if (min !== undefined && num < min) return false
+    if (max !== undefined && num > max) return false
+    return true
+  }
+
+  // Convertir datos del formulario a formato del dataset
+  const convertToDatasetFormat = (data: Record<string, string>): Record<string, any> => {
+    const datasetData: Record<string, any> = {}
+    
+    ALL_VARIABLES.forEach((variable) => {
+      const value = data[variable.name]
+      const varDef = ALL_VARIABLES.find(v => v.name === variable.name)
+      if (!varDef) return
+      
+      if (variable.type === "select") {
+        if (variable.name === "Sexo") {
+          // Convertir sexo a male/female (0/1)
+          datasetData["male"] = value === "Masculino" ? 1 : 0
+          datasetData["female"] = value === "Femenino" ? 1 : 0
+        } else if (variable.name === "Procedencia") {
+          // Convertir procedencia a urban_origin/rural_origin (0/1)
+          datasetData["urban_origin"] = value === "Urbano" ? 1 : 0
+          datasetData["rural_origin"] = value === "Rural" ? 1 : 0
+        } else if (variable.name === "Ocupacion") {
+          // Convertir ocupación a one-hot encoding
+          const occupations = ["Ama de casa", "Estudiante", "Profesional", "Comerciante", "Agricultura/Ganadería", "Oficios varios", "Desempleado"]
+          const occupationMap: Record<string, string> = {
+            "Ama de casa": "homemaker",
+            "Estudiante": "student",
+            "Profesional": "professional",
+            "Comerciante": "merchant",
+            "Agricultura/Ganadería": "agriculture_livestock",
+            "Oficios varios": "various_jobs",
+            "Desempleado": "unemployed"
+          }
+          occupations.forEach(occ => {
+            const datasetKey = occupationMap[occ]
+            datasetData[datasetKey] = value === occ ? 1 : 0
+          })
+        } else {
+          // Síntomas binarios (Sí = 1, No = 0)
+          datasetData[varDef.datasetName] = value === "Sí" ? 1 : 0
+        }
+      } else {
+        // Valores numéricos
+        const numValue = Number.parseFloat(value || "0")
+        datasetData[varDef.datasetName] = numValue
+      }
+    })
+    
+    return datasetData
+  }
+
+  const getDataHash = (data: Record<string, any>): number => {
     const str = JSON.stringify(data)
     let hash = 0
     for (let i = 0; i < str.length; i++) {
@@ -91,24 +177,23 @@ export function PredictionForm() {
     return Math.abs(hash)
   }
 
-  const predictLogisticRegression = (data: Record<string, string>) => {
-    const plaquetas = Number.parseFloat(data["Plaquetas"] || "0")
-    const temperatura = Number.parseFloat(data["Temperatura"] || "0")
-    const hemoglobina = Number.parseFloat(data["Hemoglobina"] || "0")
-    const fiebre = data["Fiebre"] === "Sí"
-    const dolorCabeza = data["Dolor_Cabeza"] === "Sí"
-    const nauseas = data["Nauseas"] === "Sí"
+  const predictLogisticRegression = (data: Record<string, any>) => {
+    const plaquetas = Number.parseFloat(data["platelets"] || "0")
+    const temperatura = Number.parseFloat(data["body_temperature"] || "0")
+    const hemoglobina = Number.parseFloat(data["hemoglobin"] || "0")
+    const fiebre = data["fever"] === 1
+    const dolorCabeza = data["headache"] === 1
 
     let prediction = "Dengue"
     let baseConfidence = 0
 
-    if (plaquetas < 100000 && temperatura > 38 && dolorCabeza && fiebre) {
+    if (plaquetas < 100 && temperatura > 38 && dolorCabeza && fiebre) {
       prediction = "Dengue"
       baseConfidence = 87
     } else if (temperatura > 39 && hemoglobina < 12 && fiebre) {
       prediction = "Malaria"
       baseConfidence = 84
-    } else if (nauseas && dolorCabeza && temperatura > 38.5) {
+    } else if (dolorCabeza && temperatura > 38.5) {
       prediction = "Leptospirosis"
       baseConfidence = 82
     } else {
@@ -133,20 +218,19 @@ export function PredictionForm() {
     return { prediction, confidence }
   }
 
-  const predictNeuralNetwork = (data: Record<string, string>) => {
-    const plaquetas = Number.parseFloat(data["Plaquetas"] || "0")
-    const temperatura = Number.parseFloat(data["Temperatura"] || "0")
-    const hemoglobina = Number.parseFloat(data["Hemoglobina"] || "0")
-    const edad = Number.parseFloat(data["Edad"] || "0")
-    const fiebre = data["Fiebre"] === "Sí"
-    const dolorCabeza = data["Dolor_Cabeza"] === "Sí"
-    const nauseas = data["Nauseas"] === "Sí"
+  const predictNeuralNetwork = (data: Record<string, any>) => {
+    const plaquetas = Number.parseFloat(data["platelets"] || "0")
+    const temperatura = Number.parseFloat(data["body_temperature"] || "0")
+    const hemoglobina = Number.parseFloat(data["hemoglobin"] || "0")
+    const edad = Number.parseFloat(data["age"] || "0")
+    const fiebre = data["fever"] === 1
+    const dolorCabeza = data["headache"] === 1
 
     let prediction = "Dengue"
     let baseConfidence = 0
 
     const denguScore =
-      (plaquetas < 100000 ? 30 : 0) +
+      (plaquetas < 100 ? 30 : 0) +
       (temperatura > 38 ? 25 : 0) +
       (dolorCabeza ? 20 : 0) +
       (fiebre ? 15 : 0) +
@@ -156,11 +240,9 @@ export function PredictionForm() {
       (temperatura > 39 ? 30 : 0) +
       (hemoglobina < 12 ? 25 : 0) +
       (fiebre ? 20 : 0) +
-      (dolorCabeza ? 15 : 0) +
-      (nauseas ? 10 : 0)
+      (dolorCabeza ? 15 : 0)
 
     const leptoScore =
-      (nauseas ? 25 : 0) +
       (dolorCabeza ? 25 : 0) +
       (temperatura > 38.5 ? 20 : 0) +
       (fiebre ? 15 : 0) +
@@ -201,152 +283,265 @@ export function PredictionForm() {
 
   const downloadResultAsImage = async (prediction: string, confidence: number, model: string) => {
     try {
+      const margin = 150
+      const canvasWidth = 2400
+      const contentWidth = canvasWidth - (margin * 2)
+      const radius = 50
+      const centerX = canvasWidth / 2
+      
+      // Calcular altura necesaria
+      let calculatedHeight = margin + 100 // Inicio
+      calculatedHeight += 90 + 70 + 100 // Título, subtítulo, modelo
+      calculatedHeight += 350 + 80 // Caja de diagnóstico
+      calculatedHeight += 80 // Título "Información Completa"
+      
+      // Definir constantes que se usarán tanto para cálculo como para dibujo
+      const lineHeight = 45
+      const sectionSpacing = 30
+      const warningBoxPadding = 40
+      const warningTitleHeight = 50
+      const warningLineHeight = 45
+      const warningTextLines = 2
+      
+      const sections = [
+        { name: "Datos Demográficos", variables: ALL_VARIABLES.filter(v => v.section === "demographics") },
+        { name: "Signos Vitales", variables: ALL_VARIABLES.filter(v => v.section === "vitals") },
+        { name: "Síntomas", variables: ALL_VARIABLES.filter(v => v.section === "symptoms") },
+        { name: "Laboratorio - Hemograma", variables: ALL_VARIABLES.filter(v => v.section === "hemogram") },
+        { name: "Laboratorio - Bioquímica", variables: ALL_VARIABLES.filter(v => v.section === "biochemistry") },
+      ]
+      
+      // Calcular altura de las variables
+      sections.forEach((section) => {
+        if (section.variables.length > 0) {
+          calculatedHeight += 45 // Título de sección
+          const rowsInSection = Math.ceil(section.variables.length / 3)
+          calculatedHeight += (rowsInSection * lineHeight) + sectionSpacing
+        }
+      })
+      
+      calculatedHeight += 50 // Espacio antes de advertencia
+      const warningBoxHeight = warningBoxPadding * 2 + warningTitleHeight + (warningTextLines * warningLineHeight) + 20
+      calculatedHeight += warningBoxHeight + 60 // Caja de advertencia + espacio
+      calculatedHeight += 50 // Fecha
+      calculatedHeight += margin + 50 // Margen final
+      
+      // Crear canvas con altura exacta
       const canvas = document.createElement("canvas")
-      canvas.width = 1600
-      canvas.height = 1400 // Increased height to accommodate input data
+      canvas.width = canvasWidth
+      canvas.height = calculatedHeight
       const ctx = canvas.getContext("2d")
 
       if (!ctx) throw new Error("No se pudo crear el contexto del canvas")
 
+      // Fondo blanco
       ctx.fillStyle = "#ffffff"
-      ctx.fillRect(0, 0, 1600, 1400)
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
 
+      // Fondo decorativo
       ctx.fillStyle = "#f9fafb"
+      const contentHeight = calculatedHeight - (margin * 2)
       ctx.beginPath()
-      ctx.moveTo(120, 80)
-      ctx.lineTo(1480, 80)
-      ctx.arcTo(1520, 80, 1520, 120, 40)
-      ctx.lineTo(1520, 1280)
-      ctx.arcTo(1520, 1320, 1480, 1320, 40)
-      ctx.lineTo(1480, 1280)
-      ctx.arcTo(1440, 1280, 1480, 1280, 40)
-      ctx.lineTo(180, 1280)
-      ctx.arcTo(120, 1280, 120, 1240, 40)
-      ctx.lineTo(120, 120)
-      ctx.arcTo(120, 80, 160, 80, 40)
+      ctx.moveTo(margin + radius, margin)
+      ctx.lineTo(margin + contentWidth - radius, margin)
+      ctx.arcTo(margin + contentWidth, margin, margin + contentWidth, margin + radius, radius)
+      ctx.lineTo(margin + contentWidth, margin + contentHeight - radius)
+      ctx.arcTo(margin + contentWidth, margin + contentHeight, margin + contentWidth - radius, margin + contentHeight, radius)
+      ctx.lineTo(margin + radius, margin + contentHeight)
+      ctx.arcTo(margin, margin + contentHeight, margin, margin + contentHeight - radius, radius)
+      ctx.lineTo(margin, margin + radius)
+      ctx.arcTo(margin, margin, margin + radius, margin, radius)
       ctx.closePath()
       ctx.fill()
 
-      // Title
+      let currentY = margin + 100
+
+      // Título principal
       ctx.fillStyle = "#000000"
-      ctx.font = "bold 64px system-ui, -apple-system, sans-serif"
+      ctx.font = "bold 80px system-ui, -apple-system, sans-serif"
       ctx.textAlign = "center"
       ctx.textBaseline = "middle"
-      ctx.fillText("Sistema DEMALE-HSJM", 800, 180)
+      ctx.fillText("Sistema DEMALE-HSJM", centerX, currentY)
+      currentY += 90
 
-      // Subtitle
+      // Subtítulo
       ctx.fillStyle = "#4b5563"
-      ctx.font = "32px system-ui, -apple-system, sans-serif"
-      ctx.fillText("Resultado del Diagnóstico", 800, 240)
+      ctx.font = "40px system-ui, -apple-system, sans-serif"
+      ctx.fillText("Resultado del Diagnóstico", centerX, currentY)
+      currentY += 70
 
-      // Model info
+      // Modelo
       ctx.fillStyle = "#1f2937"
-      ctx.font = "24px system-ui, -apple-system, sans-serif"
-      ctx.fillText(`Modelo: ${model}`, 800, 290)
+      ctx.font = "32px system-ui, -apple-system, sans-serif"
+      ctx.fillText(`Modelo: ${model}`, centerX, currentY)
+      currentY += 100
 
-      // Result box background
+      // Caja de resultado
+      const resultBoxY = currentY
+      const resultBoxHeight = 350
+      const resultBoxWidth = contentWidth - 200
+      const resultBoxX = margin + 100
+      
       ctx.fillStyle = "#e5e7eb"
       ctx.beginPath()
-      ctx.moveTo(180, 340)
-      ctx.lineTo(1420, 340)
-      ctx.arcTo(1450, 340, 1450, 370, 30)
-      ctx.lineTo(1450, 580)
-      ctx.arcTo(1450, 610, 1420, 610, 30)
-      ctx.lineTo(180, 610)
-      ctx.arcTo(150, 610, 150, 580, 30)
-      ctx.lineTo(150, 370)
-      ctx.arcTo(150, 340, 180, 340, 30)
+      ctx.moveTo(resultBoxX + radius, resultBoxY)
+      ctx.lineTo(resultBoxX + resultBoxWidth - radius, resultBoxY)
+      ctx.arcTo(resultBoxX + resultBoxWidth, resultBoxY, resultBoxX + resultBoxWidth, resultBoxY + radius, radius)
+      ctx.lineTo(resultBoxX + resultBoxWidth, resultBoxY + resultBoxHeight - radius)
+      ctx.arcTo(resultBoxX + resultBoxWidth, resultBoxY + resultBoxHeight, resultBoxX + resultBoxWidth - radius, resultBoxY + resultBoxHeight, radius)
+      ctx.lineTo(resultBoxX + radius, resultBoxY + resultBoxHeight)
+      ctx.arcTo(resultBoxX, resultBoxY + resultBoxHeight, resultBoxX, resultBoxY + resultBoxHeight - radius, radius)
+      ctx.lineTo(resultBoxX, resultBoxY + radius)
+      ctx.arcTo(resultBoxX, resultBoxY, resultBoxX + radius, resultBoxY, radius)
       ctx.closePath()
       ctx.fill()
 
-      // "Diagnóstico Predicho:" label
+      // Etiqueta "Diagnóstico Predicho:"
+      let textY = resultBoxY + 90
       ctx.fillStyle = "#1f2937"
-      ctx.font = "600 36px system-ui, -apple-system, sans-serif"
-      ctx.fillText("Diagnóstico Predicho:", 800, 410)
+      ctx.font = "600 48px system-ui, -apple-system, sans-serif"
+      ctx.fillText("Diagnóstico Predicho:", centerX, textY)
 
-      // Prediction text in black
+      // Diagnóstico
+      textY += 100
       ctx.fillStyle = "#000000"
-      ctx.font = "bold 72px system-ui, -apple-system, sans-serif"
-      ctx.fillText(prediction, 800, 500)
+      ctx.font = "bold 100px system-ui, -apple-system, sans-serif"
+      ctx.fillText(prediction, centerX, textY)
 
-      // Confidence
+      // Confianza
+      textY += 90
       ctx.fillStyle = "#4b5563"
-      ctx.font = "32px system-ui, -apple-system, sans-serif"
-      ctx.fillText(`Confianza: ${confidence.toFixed(2)}%`, 800, 570)
+      ctx.font = "40px system-ui, -apple-system, sans-serif"
+      ctx.fillText(`Confianza: ${confidence.toFixed(2)}%`, centerX, textY)
 
+      // Continuar después de la caja de resultado
+      currentY = resultBoxY + resultBoxHeight + 80
+
+      // Información del paciente - TODAS LAS VARIABLES
       ctx.fillStyle = "#1f2937"
-      ctx.font = "600 32px system-ui, -apple-system, sans-serif"
+      ctx.font = "600 42px system-ui, -apple-system, sans-serif"
       ctx.textAlign = "left"
-      ctx.fillText("Datos Clínicos Ingresados:", 180, 680)
+      ctx.fillText("Información Completa del Paciente:", margin + 100, currentY)
+      currentY += 80
 
-      // Display main variables in two columns
+      // Configuración para mostrar todas las variables en 3 columnas
       ctx.fillStyle = "#374151"
-      ctx.font = "24px system-ui, -apple-system, sans-serif"
-      let yPos = 730
-      const leftX = 200
-      const rightX = 900
+      ctx.font = "28px system-ui, -apple-system, sans-serif"
+      const col1X = margin + 150
+      const col2X = margin + 850
+      const col3X = margin + 1550
 
-      MAIN_VARIABLES.forEach((variable, index) => {
-        const value = formData[variable.name] || "N/A"
-        const text = `${variable.label}: ${value}`
-        const xPos = index % 2 === 0 ? leftX : rightX
-
-        if (index % 2 === 0 && index > 0) {
-          yPos += 45
+      // Función helper para formatear valores
+      const formatValue = (variable: VariableDef, value: string): string => {
+        if (!value || value.trim() === "") return "N/A"
+        if (variable.type === "number") {
+          return value
         }
+        return value
+      }
 
-        ctx.fillText(text, xPos, yPos)
+      let startY = currentY
+      
+      // Usar las secciones ya definidas al inicio de la función
+      sections.forEach((section) => {
+        if (section.variables.length === 0) return
+
+        // Título de sección
+        ctx.fillStyle = "#1f2937"
+        ctx.font = "600 34px system-ui, -apple-system, sans-serif"
+        ctx.fillText(section.name + ":", col1X, startY)
+        startY += 45
+
+        // Variables en 3 columnas
+        let rowStartY = startY
+        section.variables.forEach((variable, index) => {
+          const value = formatValue(variable, formData[variable.name] || "")
+          const text = `${variable.label}: ${value}`
+          
+          // Determinar en qué columna va (0, 1, o 2)
+          const colIndex = index % 3
+          // Calcular la fila: Math.floor(index / 3)
+          const rowIndex = Math.floor(index / 3)
+          
+          let xPos = col1X
+          if (colIndex === 1) xPos = col2X
+          if (colIndex === 2) xPos = col3X
+
+          // Calcular la posición Y basada en la fila
+          const itemY = rowStartY + (rowIndex * lineHeight)
+
+          ctx.fillStyle = "#374151"
+          ctx.font = "28px system-ui, -apple-system, sans-serif"
+          ctx.fillText(text, xPos, itemY)
+        })
+
+        // Espacio después de cada sección
+        const rowsInSection = Math.ceil(section.variables.length / 3)
+        startY += (rowsInSection * lineHeight) + sectionSpacing
       })
 
-      // Warning box background
-      yPos += 80
+      currentY = startY + 50
+
+      // Caja de advertencia
+      const warningBoxY = currentY
+      const warningBoxWidth = contentWidth - 200
+      const warningBoxX = margin + 100
+
+      // Dibujar fondo de advertencia
       ctx.fillStyle = "#f3f4f6"
       ctx.beginPath()
-      ctx.moveTo(180, yPos)
-      ctx.lineTo(1420, yPos)
-      ctx.arcTo(1450, yPos, 1450, yPos + 30, 30)
-      ctx.lineTo(1450, yPos + 140)
-      ctx.arcTo(1450, yPos + 170, 1420, yPos + 170, 30)
-      ctx.lineTo(180, yPos + 170)
-      ctx.arcTo(150, yPos + 170, 150, yPos + 140, 30)
-      ctx.lineTo(150, yPos + 30)
-      ctx.arcTo(150, yPos, 180, yPos, 30)
+      ctx.moveTo(warningBoxX + radius, warningBoxY)
+      ctx.lineTo(warningBoxX + warningBoxWidth - radius, warningBoxY)
+      ctx.arcTo(warningBoxX + warningBoxWidth, warningBoxY, warningBoxX + warningBoxWidth, warningBoxY + radius, radius)
+      ctx.lineTo(warningBoxX + warningBoxWidth, warningBoxY + warningBoxHeight - radius)
+      ctx.arcTo(warningBoxX + warningBoxWidth, warningBoxY + warningBoxHeight, warningBoxX + warningBoxWidth - radius, warningBoxY + warningBoxHeight, radius)
+      ctx.lineTo(warningBoxX + radius, warningBoxY + warningBoxHeight)
+      ctx.arcTo(warningBoxX, warningBoxY + warningBoxHeight, warningBoxX, warningBoxY + warningBoxHeight - radius, radius)
+      ctx.lineTo(warningBoxX, warningBoxY + radius)
+      ctx.arcTo(warningBoxX, warningBoxY, warningBoxX + radius, warningBoxY, radius)
       ctx.closePath()
       ctx.fill()
 
-      // Warning box border
+      // Borde de advertencia
       ctx.strokeStyle = "#000000"
       ctx.lineWidth = 4
       ctx.beginPath()
-      ctx.moveTo(180, yPos)
-      ctx.lineTo(1420, yPos)
-      ctx.arcTo(1450, yPos, 1450, yPos + 30, 30)
-      ctx.lineTo(1450, yPos + 140)
-      ctx.arcTo(1450, yPos + 170, 1420, yPos + 170, 30)
-      ctx.lineTo(180, yPos + 170)
-      ctx.arcTo(150, yPos + 170, 150, yPos + 140, 30)
-      ctx.lineTo(150, yPos + 30)
-      ctx.arcTo(150, yPos, 180, yPos, 30)
+      ctx.moveTo(warningBoxX + radius, warningBoxY)
+      ctx.lineTo(warningBoxX + warningBoxWidth - radius, warningBoxY)
+      ctx.arcTo(warningBoxX + warningBoxWidth, warningBoxY, warningBoxX + warningBoxWidth, warningBoxY + radius, radius)
+      ctx.lineTo(warningBoxX + warningBoxWidth, warningBoxY + warningBoxHeight - radius)
+      ctx.arcTo(warningBoxX + warningBoxWidth, warningBoxY + warningBoxHeight, warningBoxX + warningBoxWidth - radius, warningBoxY + warningBoxHeight, radius)
+      ctx.lineTo(warningBoxX + radius, warningBoxY + warningBoxHeight)
+      ctx.arcTo(warningBoxX, warningBoxY + warningBoxHeight, warningBoxX, warningBoxY + warningBoxHeight - radius, radius)
+      ctx.lineTo(warningBoxX, warningBoxY + radius)
+      ctx.arcTo(warningBoxX, warningBoxY, warningBoxX + radius, warningBoxY, radius)
       ctx.closePath()
       ctx.stroke()
 
-      // Warning title
+      // Título de advertencia - bien posicionado dentro de la caja
+      const warningTextX = warningBoxX + warningBoxPadding
+      let warningTextY = warningBoxY + warningBoxPadding + 35
       ctx.fillStyle = "#000000"
-      ctx.font = "600 28px system-ui, -apple-system, sans-serif"
-      ctx.fillText("⚠️ Nota Importante", 200, yPos + 50)
+      ctx.font = "600 36px system-ui, -apple-system, sans-serif"
+      ctx.textAlign = "left"
+      ctx.fillText("⚠️ Nota Importante", warningTextX, warningTextY)
 
-      // Warning text
-      ctx.font = "24px system-ui, -apple-system, sans-serif"
+      // Texto de advertencia - bien posicionado y con espacio suficiente
+      warningTextY += warningTitleHeight + 10
+      ctx.font = "30px system-ui, -apple-system, sans-serif"
       ctx.fillStyle = "#1f2937"
-      ctx.fillText("Este es un sistema de apoyo al diagnóstico. La decisión final debe", 200, yPos + 95)
-      ctx.fillText("ser tomada por un profesional médico calificado.", 200, yPos + 130)
+      ctx.fillText("Este es un sistema de apoyo al diagnóstico. La decisión final debe", warningTextX, warningTextY)
+      warningTextY += warningLineHeight
+      ctx.fillText("ser tomada por un profesional médico calificado.", warningTextX, warningTextY)
 
+      // Fecha - DESPUÉS de la caja de advertencia
+      currentY = warningBoxY + warningBoxHeight + 60
       ctx.fillStyle = "#6b7280"
-      ctx.font = "20px system-ui, -apple-system, sans-serif"
+      ctx.font = "28px system-ui, -apple-system, sans-serif"
       ctx.textAlign = "center"
-      ctx.fillText(`Fecha: ${new Date().toLocaleDateString("es-ES")}`, 800, yPos + 220)
+      ctx.fillText(`Fecha: ${new Date().toLocaleDateString("es-ES")} ${new Date().toLocaleTimeString("es-ES")}`, centerX, currentY)
 
-      // Convert to blob and download
+      // Convertir a blob y descargar
       canvas.toBlob((blob) => {
         if (!blob) throw new Error("No se pudo generar la imagen")
 
@@ -365,7 +560,7 @@ export function PredictionForm() {
         })
       }, "image/png")
     } catch (error) {
-      console.error("[v0] Error al generar imagen:", error)
+      console.error("Error al generar imagen:", error)
       Swal.fire({
         icon: "error",
         title: "Error",
@@ -376,13 +571,37 @@ export function PredictionForm() {
   }
 
   const handlePredict = async () => {
-    const missingFields = MAIN_VARIABLES.filter((field) => !formData[field.name])
+    // Validar que todos los campos estén completos
+    const missingFields = ALL_VARIABLES.filter((field) => {
+      const value = formData[field.name]
+      if (!value || value.trim() === "") return true
+      
+      // Validar rangos para campos numéricos
+      if (field.type === "number") {
+        if (!validateNumericRange(value, field.min, field.max)) {
+          return true
+        }
+      }
+      
+      return false
+    })
 
     if (missingFields.length > 0) {
       Swal.fire({
         icon: "warning",
-        title: "Campos Incompletos",
-        text: `Por favor completa todos los campos principales: ${missingFields.map((f) => f.label).join(", ")}`,
+        title: "Campos Incompletos o Inválidos",
+        html: `
+          <div class="text-left">
+            <p class="mb-2">Por favor completa todos los campos requeridos con valores válidos:</p>
+            <ul class="text-sm list-disc list-inside max-h-60 overflow-y-auto">
+              ${missingFields.slice(0, 10).map((f) => {
+                const range = f.min !== undefined && f.max !== undefined ? ` (${f.min}-${f.max})` : ""
+                return `<li>${f.label}${range}</li>`
+              }).join("")}
+              ${missingFields.length > 10 ? `<li>... y ${missingFields.length - 10} más</li>` : ""}
+            </ul>
+          </div>
+        `,
         confirmButtonColor: "#000",
       })
       return
@@ -392,7 +611,12 @@ export function PredictionForm() {
 
     await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    const result = selectedModel === "logistic" ? predictLogisticRegression(formData) : predictNeuralNetwork(formData)
+    // Convertir a formato del dataset
+    const datasetData = convertToDatasetFormat(formData)
+    
+    const result = selectedModel === "logistic" 
+      ? predictLogisticRegression(datasetData) 
+      : predictNeuralNetwork(datasetData)
 
     const { prediction, confidence } = result
 
@@ -418,17 +642,6 @@ export function PredictionForm() {
             <p class="text-sm text-gray-600 mt-2">Confianza: ${confidence.toFixed(2)}%</p>
           </div>
           
-          <hr class="my-3" />
-          
-          <div class="text-sm">
-            <p class="font-semibold mb-2">Datos Clínicos Ingresados:</p>
-            <div class="grid grid-cols-2 gap-2 text-xs">
-              ${MAIN_VARIABLES.map((variable) => {
-                return `<p>• ${variable.label}: <strong>${formData[variable.name] || "N/A"}</strong></p>`
-              }).join("")}
-            </div>
-          </div>
-          
           <div class="mt-4 p-3 bg-blue-50 rounded text-xs text-left">
             <p class="font-semibold text-blue-800">⚠️ Nota Importante:</p>
             <p class="text-blue-700 mt-1">Este es un sistema de apoyo al diagnóstico. La decisión final debe ser tomada por un profesional médico calificado.</p>
@@ -446,6 +659,58 @@ export function PredictionForm() {
         downloadResultAsImage(prediction, confidence, modelName)
       }
     })
+  }
+
+  const renderVariable = (variable: VariableDef) => {
+    const hasError = variable.type === "number" && formData[variable.name] && !validateNumericRange(formData[variable.name], variable.min, variable.max)
+
+    return (
+      <div key={variable.name} className="space-y-2">
+        <Label htmlFor={variable.name} className="text-xs sm:text-sm">
+          {variable.label}
+          <span className="text-red-500 ml-1">*</span>
+          {variable.min !== undefined && variable.max !== undefined && (
+            <span className="text-xs text-muted-foreground ml-1">({variable.min}-{variable.max})</span>
+          )}
+        </Label>
+
+        {variable.type === "select" ? (
+          <Select
+            value={formData[variable.name] || ""}
+            onValueChange={(value) => handleInputChange(variable.name, value)}
+          >
+            <SelectTrigger id={variable.name} className={`h-9 sm:h-10 ${hasError ? "border-red-500" : ""}`}>
+              <SelectValue placeholder="Seleccionar..." />
+            </SelectTrigger>
+            <SelectContent>
+              {variable.options?.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Input
+            id={variable.name}
+            type={variable.type}
+            placeholder={variable.placeholder}
+            step={variable.step}
+            min={variable.min}
+            max={variable.max}
+            value={formData[variable.name] || ""}
+            onChange={(e) => handleInputChange(variable.name, e.target.value)}
+            className={`transition-all focus:scale-[1.02] h-9 sm:h-10 text-sm ${hasError ? "border-red-500" : ""}`}
+            required
+          />
+        )}
+        {hasError && (
+          <p className="text-xs text-red-500">
+            Valor fuera de rango. Rango válido: {variable.min}-{variable.max}
+          </p>
+        )}
+      </div>
+    )
   }
 
   return (
@@ -520,97 +785,65 @@ export function PredictionForm() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4">
-        {MAIN_VARIABLES.map((variable) => (
-          <div key={variable.name} className="space-y-2">
-            <Label htmlFor={variable.name} className="text-xs sm:text-sm">
-              {variable.label}
-              <span className="text-red-500 ml-1">*</span>
-            </Label>
-
-            {variable.type === "select" ? (
-              <Select
-                value={formData[variable.name] || ""}
-                onValueChange={(value) => handleInputChange(variable.name, value)}
-              >
-                <SelectTrigger id={variable.name} className="h-9 sm:h-10">
-                  <SelectValue placeholder="Seleccionar..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {variable.options?.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <Input
-                id={variable.name}
-                type={variable.type}
-                placeholder={variable.placeholder}
-                step={variable.step}
-                value={formData[variable.name] || ""}
-                onChange={(e) => handleInputChange(variable.name, e.target.value)}
-                className="transition-all focus:scale-[1.02] h-9 sm:h-10 text-sm"
-              />
-            )}
+      {/* Datos Demográficos */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Datos Demográficos</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {VARIABLES_BY_SECTION.demographics.map(renderVariable)}
           </div>
-        ))}
+        </CardContent>
+      </Card>
+
+      {/* Signos Vitales */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Signos Vitales</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {VARIABLES_BY_SECTION.vitals.map(renderVariable)}
       </div>
+        </CardContent>
+      </Card>
 
-      <Collapsible open={showAdditional} onOpenChange={setShowAdditional} className="space-y-4">
-        <CollapsibleTrigger asChild>
-          <Button variant="outline" className="w-full justify-between text-sm sm:text-base bg-transparent">
-            Variables Adicionales (Opcional)
-            <ChevronDown className={`h-4 w-4 transition-transform ${showAdditional ? "rotate-180" : ""}`} />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent className="space-y-4">
-          <div className="p-3 sm:p-4 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-xs sm:text-sm text-amber-800">
-              Estas variables son opcionales y pueden mejorar la precisión del diagnóstico
-            </p>
+      {/* Síntomas */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Síntomas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {VARIABLES_BY_SECTION.symptoms.map(renderVariable)}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 sm:gap-4">
-            {ADDITIONAL_VARIABLES.map((variable) => (
-              <div key={variable.name} className="space-y-2">
-                <Label htmlFor={variable.name} className="text-xs sm:text-sm">
-                  {variable.label}
-                </Label>
+        </CardContent>
+      </Card>
 
-                {variable.type === "select" ? (
-                  <Select
-                    value={formData[variable.name] || ""}
-                    onValueChange={(value) => handleInputChange(variable.name, value)}
-                  >
-                    <SelectTrigger id={variable.name} className="h-9 sm:h-10">
-                      <SelectValue placeholder="Seleccionar..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {variable.options?.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    id={variable.name}
-                    type={variable.type}
-                    placeholder={variable.placeholder}
-                    step={variable.step}
-                    value={formData[variable.name] || ""}
-                    onChange={(e) => handleInputChange(variable.name, e.target.value)}
-                    className="transition-all focus:scale-[1.02] h-9 sm:h-10 text-sm"
-                  />
-                )}
+      {/* Hemograma */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Laboratorio - Hemograma</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {VARIABLES_BY_SECTION.hemogram.map(renderVariable)}
               </div>
-            ))}
+        </CardContent>
+      </Card>
+
+      {/* Bioquímica */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Laboratorio - Bioquímica</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+            {VARIABLES_BY_SECTION.biochemistry.map(renderVariable)}
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </CardContent>
+      </Card>
 
       <div className="flex flex-col sm:flex-row gap-3">
         <Button
@@ -638,11 +871,8 @@ export function PredictionForm() {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        * Los campos principales son requeridos para realizar el diagnóstico
+        * Todos los campos son obligatorios para realizar el diagnóstico. Asegúrate de ingresar valores dentro de los rangos especificados.
       </p>
     </div>
   )
 }
-
-
-
